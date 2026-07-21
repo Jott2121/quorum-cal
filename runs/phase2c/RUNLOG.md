@@ -71,3 +71,32 @@ The phase2b muddle was substantially the labels, not the judges.
 - Error events still rare (false-endorse 0-3% per judge) — rho on the invalid side
   remains a small-count estimate; the loop-until-dry fix is further set growth.
 - Commit-stratum n=26 is small; its 7.7% false-reject rate is indicative, not tight.
+
+## ERRATUM — v1.0.1 (2026-07-21, cross-model review corrections)
+
+An OpenAI-lineage adversarial review of the published repo surfaced two
+material defects in the metrics; both fixed, report regenerated (original
+preserved as report-v1.0.0.json).
+
+1. LIVENESS: u_epsilon now counts NON-ENDORSEMENTS (reject+abstain) on valid
+   tasks, not abstentions only — a reject withholds endorsement exactly like
+   an abstain. Effect: identical-sonnet u_eps 2->3, q window [1,1] -> INFEASIBLE
+   (three identical sonnets cannot reliably certify valid work at any quorum);
+   diverse-lens and claude-plus-grok u_eps 1->2, q_max 2->1. e_delta, rho,
+   N_eff unchanged.
+2. PHI IDENTIFIABILITY: undefined (zero-variance) pairwise correlations are
+   now None and COUNTED (n_phi_undefined), not silently 0.0. Full-set panels
+   have 0 undefined pairs (headline N_eff table unaffected); the invalid-only
+   sensitivity "rho 0.00 / N_eff 3.00" claims rested substantially on this
+   convention (2/3 judges with zero false-endorsements => most pairs
+   unidentified) and are restated as event counts with bounds: 0 shared false
+   endorsements in 99 truth-by-construction bugs (95% upper bound ~3%).
+   Bootstrap CI lower bounds widened on several panels for the same reason.
+
+Also fixed in v1.0.1 (no numeric impact): grok adapter had the same
+first-modelUsage-entry provenance bug class as the claude adapter (latent —
+single-entry envelopes observed); grok prompts now pass via file, not argv;
+CLI binaries resolve env->PATH (personal fallback paths removed); verdict-JSON
+injection guard at gold-set build; builder now wires revert-valids and the
+strict commit filter by default (public quickstart previously rebuilt the
+noisy Phase-1-style set).

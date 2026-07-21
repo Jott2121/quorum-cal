@@ -11,19 +11,24 @@ model lineages.
 
 ## The headline (180 tasks, ~2,000 judge calls, July 2026)
 
-| panel (3 judges) | effective votes | 95% CI | error corr. |
-|---|---|---|---|
-| identical (one model, one prompt) | **1.31** | [1.07, 2.40] | 0.65 |
-| diverse lenses (one model, 3 prompts) | **2.43** | [2.18, 3.00] | 0.12 |
-| three lineages (Claude + OpenAI + xAI) | **2.28** | [1.81, 3.00] | 0.16 |
+| panel (3 judges) | effective votes | 95% CI | error corr. | q window |
+|---|---|---|---|---|
+| identical (one model, one prompt) | **1.31** | [1.06, 2.40] | 0.65 | infeasible |
+| diverse lenses (one model, 3 prompts) | **2.43** | [2.17, 3.00] | 0.12 | [1, 1] |
+| three lineages (Claude + OpenAI + xAI) | **2.28** | [1.40, 3.00] | 0.16 | [1, 1] |
 
-- Three identical judges are ~1.3 real votes wearing three hats.
-- Diversity — different prompts **or** different lineages — restores most of
-  the independence, and in this sample **no diverse panel ever shared a false
-  endorsement of a real bug**; identical-model panels did.
+- Three identical judges are ~1.3 real votes wearing three hats — and under
+  honest liveness accounting their feasible quorum window is EMPTY.
+- Diversity — different prompts **or** different lineages — retains most of
+  the independence: the diverse panels shared **0 false endorsements across
+  99 truth-by-construction bugs** (95% upper bound ≈3%); identical-model
+  panels demonstrably shared theirs. CIs overlap among diverse forms — the
+  data separates identical-vs-diverse, not a ranking between them.
 - Our first cross-lineage number was a flashy 3.00 that dissolved under a
   larger sample — the culprit was gold-set label noise, not the judges. The
-  full four-act story, including the fix, is in [WRITEUP.md](WRITEUP.md).
+  full four-act story, including the fix, is in [WRITEUP.md](WRITEUP.md) —
+  as is the v1.0.1 corrections section from running a different-lineage
+  adversarial review on our own published claims one day after release.
 
 ## What's in the box
 
@@ -39,7 +44,7 @@ model lineages.
 - `runs/` — the receipts: reports, run logs, and gold sets for every
   measurement act (84 of 180 tasks derive from a private repo and are
   withheld; all aggregates include them — see WRITEUP §6).
-- 124 tests; stdlib-only core.
+- 132 tests; stdlib-only core.
 
 ## Quickstart
 

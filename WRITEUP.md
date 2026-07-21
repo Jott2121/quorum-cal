@@ -1,7 +1,7 @@
 # How many votes is your AI judge panel actually worth?
 
 *An empirical calibration of LLM judge-panel independence, with the runtime
-discipline to keep it honest. July 2026.*
+discipline to keep it honest. July 2026. v1.0.1 — see Corrections.*
 
 ## Abstract
 
@@ -12,10 +12,13 @@ they are, on gold sets whose labels are guaranteed by construction rather than
 by anyone's opinion. Headline results, measured over 180 labeled code-review
 tasks and ~2,000 sandboxed judge calls: **three identical judges (same model,
 same prompt) are worth about 1.3 independent votes** (pairwise error
-correlation 0.65); **three diverse judges — three review lenses on one model,
-or three model lineages (Claude, OpenAI, xAI) on one lens — are worth 2.3 to
-3.0**, and in our sample **no diverse panel ever shared a false endorsement of
-a real bug**, while identical-model panels demonstrably did. We also report a
+correlation 0.65); **diverse panels — three review lenses on one model (2.43 [2.17, 3.00]), or
+three model lineages, Claude/OpenAI/xAI, on one lens (2.28 [1.40, 3.00]) —
+retain most of their independence**, and on the 99 truth-by-construction bugs
+**the diverse panels shared 0 false endorsements (95% upper bound ≈3% for a
+shared-event rate), while identical-model panels demonstrably shared theirs**.
+Under the corrected liveness accounting, the identical panel's feasible
+quorum window is EMPTY — it cannot reliably certify valid work at any quorum. We also report a
 cautionary tale: our first measurement of cross-lineage panels produced a
 flashy "perfect independence" number (3.00 of 3) that dissolved when we grew
 the sample, and the culprit was label noise in the gold set, not the judges.
@@ -38,8 +41,12 @@ error budgets instead of vibes.
 
 ## 2. Method
 
-**Truth by construction.** Grading judges requires an answer key no opinion
-touched. *Invalid* tasks are mutants — small deliberate bugs injected by
+**Truth by construction — relative to the subject's own test suite as the
+oracle.** Grading judges requires an answer key no opinion touched; ours is
+the repository's own test suite, so "invalid" precisely means "a
+suite-detected behavioral regression" and "valid" means "provably returns the
+suite to green" — strong labels, but only as strong as the suite that
+anchors them. *Invalid* tasks are mutants — small deliberate bugs injected by
 mutation tooling — kept only if the subject repository's own test suite kills
 them: a guaranteed behavioral bug. *Valid* tasks (after Act III below) are the
 mirror image: for surplus killed mutants never used as invalid tasks, the
@@ -64,8 +71,10 @@ budgets, never silently dropped.
 **Math (f-free; single operator).** Per-task panel outcome vectors give the
 empirical distribution of false-endorsement counts on invalid tasks; the
 budget e_delta is its (1-delta) quantile — measuring correlation directly
-instead of multiplying marginals. Same for abstention (u_epsilon) on valid
-tasks. Effective independence N_eff = N / (1 + (N-1)·rho-bar) (Kish design
+instead of multiplying marginals. Liveness (u_epsilon) is the same quantile
+of NON-ENDORSEMENT counts (reject + abstain) on valid tasks: anything that
+withholds endorsement blocks a quorum. These are descriptive sample
+quantiles with bootstrap/Wilson intervals, not population guarantees. Effective independence N_eff = N / (1 + (N-1)·rho-bar) (Kish design
 effect) over the pairwise error-correlation matrix, bootstrap CIs. Feasible
 quorum window: safety q ≥ floor(e_delta)+1, liveness q ≤ N − u_epsilon.
 
@@ -99,27 +108,35 @@ truth-by-construction (mutant-revert fixes; partition-guarded; canonical diff
 form so no format cue survives) and real commits kept as a strict-filtered
 separate stratum:
 
-| panel | N_eff | 95% CI | rho |
-|---|---|---|---|
-| identical-sonnet | **1.31** | [1.07, 2.40] | 0.65 |
-| diverse-lens-sonnet | **2.43** | [2.18, 3.00] | 0.12 |
-| mixed-tier | 1.96 | [1.68, 2.58] | 0.27 |
-| claude-plus-codex | 1.88 | [1.66, 2.45] | 0.30 |
-| claude-plus-grok | 1.96 | [1.68, 2.69] | 0.27 |
-| three-lineage | **2.28** | [1.81, 3.00] | 0.16 |
+| panel | N_eff | 95% CI | rho | q window |
+|---|---|---|---|---|
+| identical-sonnet | **1.31** | [1.06, 2.40] | 0.65 | infeasible |
+| diverse-lens-sonnet | **2.43** | [2.17, 3.00] | 0.12 | [1, 1] |
+| mixed-tier | 1.96 | [1.25, 2.58] | 0.27 | [1, 1] |
+| claude-plus-codex | 1.88 | [1.25, 2.44] | 0.30 | [1, 1] |
+| claude-plus-grok | 1.96 | [1.24, 2.69] | 0.27 | [1, 1] |
+| three-lineage | **2.28** | [1.40, 3.00] | 0.16 | [1, 1] |
+
+CIs overlap heavily between the diverse configurations — the data separates
+"identical vs diverse", not a ranking among diverse forms.
 
 On the fully clean 154-task subset (invalid + revert-valid only): identical
-1.32, diverse-lens 3.00, three-lineage 3.00 (rho ≈ 0 for both diverse forms).
-The label-noise diagnosis, quantified: judges false-reject merged-commit
-valids at **7.7%** vs **2.4%** on construction-valids — three times more.
+1.32 vs 2.3–3.0 for diverse forms — with a caveat the correlations there are
+only partially identified: two of three judges in the diverse panels made
+zero errors, so most pairwise correlations are undefined at this sample size
+(now reported explicitly as `n_phi_undefined`). The label-noise diagnosis,
+quantified: judges false-reject merged-commit valids at **7.7%** vs **2.4%**
+on construction-valids — three times more.
 
 **The safety decomposition** (false endorsements of real bugs, the failure
 mode certification actually fears, 99 truth-by-construction bugs): the
-three-lineage, claude-plus-codex, and diverse-lens panels shared **zero**
-false endorsements (pairwise error correlation 0.00); identical-sonnet (0.23)
-and mixed-tier (0.33) shared theirs. e_delta = 0.0 at the 90th percentile for
-every panel — but Act I showed that when identical judges do err, they err
-together.
+three-lineage, claude-plus-codex, and diverse-lens panels shared **0 false
+endorsements in 99 tasks** (a 95% upper bound of roughly 3% on the
+shared-event rate — evidence of rarity, not proof of absence);
+identical-sonnet and mixed-tier DID share false endorsements (measured
+pairwise error correlations 0.23 and 0.33). e_delta = 0.0 at the 90th
+percentile for every panel — but Act I showed that when identical judges do
+err, they err together.
 
 ## 4. Practical guidance
 
@@ -176,6 +193,17 @@ mismatch guaranteeing a false alarm, caught by the end-to-end smoke.
   full.
 - **Single operator.** All math is f-free (no Byzantine operators). The
   multi-operator protocol question the EBFT paper raises is out of scope.
+- **Pretraining contamination.** Some subject-repo commits are public and may
+  appear in judge training data; the withheld private-repo tasks partially
+  hedge this, but no memorization audit was run.
+- **Adapter comparability.** The three lineages run through three different
+  consumer CLIs with different plumbing (envelope formats, flags); adapter
+  differences are confounded with model differences at the margin.
+- **The drift monitor watches behavior, not correctness.** CUSUM on
+  disagreement/abstention cannot see a panel that confidently agrees on wrong
+  answers; periodic labeled canary tasks are the recommended complement.
+- **Call accounting.** Six 3-judge panels over 180 tasks share judges: ~2,050
+  unique (judge, task) cells total, reused across panels via the cache.
 - **One domain.** Code-change review, two subject repos, one task shape.
   Lens/lineage rankings may differ elsewhere; the instrument, not the specific
   numbers, is the transferable artifact.
@@ -202,4 +230,31 @@ python -m quorumcal.cli monitor --profile ... --log verdicts.jsonl
 ```
 
 Receipts for every act are under `runs/` (reports, run logs, panels, filtered
-gold sets). 124 tests; stdlib-only core.
+gold sets). 132 tests; stdlib-only core.
+
+## Corrections (v1.0.1, 2026-07-21)
+
+One day after v1.0 we ran the repo through a cross-model adversarial review
+(an OpenAI-lineage reviewer over the published files — eating our own
+cooking, since diverse review is this paper's thesis). Two findings were
+material and are corrected throughout this document; the original report is
+preserved as `runs/phase2c/report-v1.0.0.json`.
+
+1. **Liveness under-counted.** The feasible-quorum liveness bound counted
+   only abstentions on valid tasks; rejects withhold endorsement identically.
+   Corrected: u_epsilon now counts non-endorsements. Effect: the identical
+   panel's quorum window is empty (it was [1,1]); two diverse panels' windows
+   tightened from [1,2] to [1,1]. Safety-side numbers unchanged.
+2. **Unidentified correlation reported as zero.** Pairwise phi is undefined
+   when a judge makes no errors; the previous convention reported 0.0. The
+   clean-subset "perfect independence" figures rested substantially on that
+   convention and are restated as event counts with confidence bounds;
+   undefined-pair counts are now first-class report fields, and several
+   bootstrap intervals widened accordingly. Full-set headline N_eff values
+   were unaffected (no undefined pairs there).
+
+Also fixed, no numeric impact: a latent provenance bug in the Grok adapter
+(same first-entry class as the Claude one caught in Phase 3), prompt delivery
+via argv, personal fallback binary paths, a verdict-JSON injection guard at
+gold-set build, and the public builder now producing the truth-by-construction
+valid stratum by default. Full list: `CHANGELOG.md`.

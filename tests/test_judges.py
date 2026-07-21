@@ -8,6 +8,13 @@ from quorumcal.judges import (JudgeSpec, LENS_PROMPTS, build_prompt,
                               QuotaExhausted, claude_judge, codex_judge,
                               grok_judge, parse_verdict)
 
+@pytest.fixture(autouse=True)
+def _cli_bins(monkeypatch):
+    # binary resolution is env -> which -> error; tests pin via env
+    monkeypatch.setenv("QC_CODEX_BIN", "codex")
+    monkeypatch.setenv("QC_GROK_BIN", "grok")
+
+
 TASK = GoldTask(task_id="abc123def456", repo="demo", label="invalid",
                 diff="--- a/x.py\n+++ b/x.py\n@@ -1 +1 @@\n-a + b\n+a - b\n",
                 provenance={"kind": "mutant", "ref": "m", "seed": 7})
@@ -270,10 +277,13 @@ def test_grok_cmd_is_hardened():
     env = (FIXTURES / "grok-envelope.json").read_text()
     def fake(cmd, **kw):
         seen["cmd"], seen["kw"] = cmd, kw
+        seen["prompt"] = Path(cmd[cmd.index("--prompt-file") + 1]).read_text()
         return _P2(stdout=env)
     grok_judge(GROK_SPEC, TASK, run=fake)
     cmd, kw = seen["cmd"], seen["kw"]
-    assert "--single" in cmd
+    assert "--single" not in cmd            # prompt via file, never argv
+    pf = cmd[cmd.index("--prompt-file") + 1]
+    prompt = Path(pf).read_text() if Path(pf).exists() else seen.get("prompt", "")
     assert cmd[cmd.index("--output-format") + 1] == "json"
     assert cmd[cmd.index("--tools") + 1] == ""
     assert cmd[cmd.index("-m") + 1] == "grok-4.5"
@@ -284,8 +294,7 @@ def test_grok_cmd_is_hardened():
     for forbidden in ("--resume", "--continue", "--always-approve",
                       "--permission-mode"):
         assert forbidden not in cmd
-    prompt = cmd[cmd.index("--single") + 1]
-    assert TASK.diff in prompt and "invalid" not in prompt
+    assert TASK.diff in seen["prompt"] and "invalid" not in seen["prompt"]
     cwd = kw["cwd"]
     repo_dir = str(Path(__file__).resolve().parents[1])
     assert cwd is not None and not str(cwd).startswith(repo_dir)
@@ -360,3 +369,29 @@ def test_claude_model_provenance_substitution_stays_visible():
     # requested claude-sonnet-5 absent -> report the dominant real model,
     # so a substitution differs from model_requested and drift is visible
     assert rec["model_reported"] == "claude-sonnet-5-20990101"
+
+
+def test_grok_model_provenance_prefers_requested_else_dominant():
+    # same rule as the claude fix; envelope SHAPE is the captured one, second
+    # modelUsage entry synthesized to exercise the multi-entry path
+    env = {"text": '{"verdict": "reject", "rationale": "x"}',
+           "total_cost_usd": 0.01,
+           "modelUsage": {"grok-mini-helper": {"outputTokens": 900},
+                          "grok-4.5": {"outputTokens": 200}}}
+    rec = grok_judge(GROK_SPEC, TASK, run=lambda cmd, **kw: _P2(stdout=json.dumps(env)))
+    assert rec["model_reported"] == "grok-4.5"        # requested & present wins
+
+    env2 = {"text": '{"verdict": "reject", "rationale": "x"}',
+            "modelUsage": {"grok-mini-helper": {"outputTokens": 10},
+                           "grok-4.5-build": {"outputTokens": 300}}}
+    rec2 = grok_judge(GROK_SPEC, TASK, run=lambda cmd, **kw: _P2(stdout=json.dumps(env2)))
+    assert rec2["model_reported"] == "grok-4.5-build"  # dominant entry, drift visible
+
+
+def test_binpath_env_override_then_which_then_error(monkeypatch):
+    from quorumcal.judges import _binpath
+    monkeypatch.setenv("QC_TEST_BIN", "/opt/custom/tool")
+    assert _binpath("definitely-not-a-real-tool", "QC_TEST_BIN") == "/opt/custom/tool"
+    monkeypatch.delenv("QC_TEST_BIN")
+    with pytest.raises(RuntimeError):
+        _binpath("definitely-not-a-real-tool", "QC_TEST_BIN")

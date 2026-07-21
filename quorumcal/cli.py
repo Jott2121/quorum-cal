@@ -8,10 +8,12 @@ from pathlib import Path
 
 def _cmd_goldset_build(args) -> int:
     from quorumcal.goldset import build_goldset, write_goldset
+    n_revert = args.n_revert if args.n_revert is not None else args.n_invalid
     tasks = build_goldset(
         args.repo, args.name, Path(args.workdir),
         n_invalid=args.n_invalid, n_valid=args.n_valid, seed=args.seed,
         source_paths=args.source_path,
+        n_revert=n_revert, strict_valid=not args.loose_valid,
     )
     write_goldset(args.out, tasks)
     n_inv = sum(1 for t in tasks if t.label == "invalid")
@@ -134,6 +136,12 @@ def build_parser() -> argparse.ArgumentParser:
     b.add_argument("--seed", type=int, default=7)
     b.add_argument("--source-path", action="append", required=True,
                    help="mutation scope source path (repeatable)")
+    b.add_argument("--n-revert", type=int, default=None,
+                   help="mutant-revert valid tasks (truth-by-construction); "
+                        "default = --n-invalid")
+    b.add_argument("--loose-valid", action="store_true",
+                   help="disable the strict commit-valid filter "
+                        "(new-file/oversize diffs allowed)")
     b.set_defaults(fn=_cmd_goldset_build)
 
     pn = sub.add_parser("panel").add_subparsers(dest="panel_cmd", required=True)

@@ -32,11 +32,12 @@ def empirical_quantile(values: list[float], p: float) -> float:
     return ordered[max(0, idx)]
 
 
-def pairwise_phi(a: list[int], b: list[int]) -> float:
+def pairwise_phi(a: list[int], b: list[int]) -> float | None:
     """Phi coefficient between two aligned binary vectors.
 
-    Zero-variance vectors make phi undefined; we define it as 0.0 — a judge
-    that never errs on this sample contributes no measured correlation."""
+    Zero-variance vectors make phi UNDEFINED and we return None — the earlier
+    0.0 convention masked unidentified dependence as measured independence
+    (cross-model review 2026-07-21). Callers must count undefined pairs."""
     if len(a) != len(b):
         raise ValueError(f"vectors must align, got {len(a)} vs {len(b)}")
     n11 = sum(1 for x, y in zip(a, b) if x == 1 and y == 1)
@@ -45,12 +46,15 @@ def pairwise_phi(a: list[int], b: list[int]) -> float:
     n00 = sum(1 for x, y in zip(a, b) if x == 0 and y == 0)
     denom = math.sqrt((n11 + n10) * (n01 + n00) * (n11 + n01) * (n10 + n00))
     if denom == 0:
-        return 0.0
+        return None
     return (n11 * n00 - n10 * n01) / denom
 
 
-def mean_pairwise_phi(vectors: list[list[int]]) -> float:
-    """Mean phi over all unordered judge pairs."""
+def mean_pairwise_phi(vectors: list[list[int]]) -> tuple[float, int, int]:
+    """(rho_bar over DEFINED pairs, total pairs, undefined pairs).
+
+    rho_bar is 0.0 when no pair is defined — with n_undefined == n_pairs the
+    caller can see that dependence is unidentified, not measured-zero."""
     if len(vectors) < 2:
         raise ValueError("need at least two judges")
     phis = [
@@ -58,7 +62,9 @@ def mean_pairwise_phi(vectors: list[list[int]]) -> float:
         for i in range(len(vectors))
         for j in range(i + 1, len(vectors))
     ]
-    return sum(phis) / len(phis)
+    defined = [p for p in phis if p is not None]
+    rho = sum(defined) / len(defined) if defined else 0.0
+    return rho, len(phis), len(phis) - len(defined)
 
 
 def n_eff(n_judges: int, rho_bar: float) -> float:
@@ -84,7 +90,7 @@ def bootstrap_n_eff(vectors: list[list[int]], iters: int = 2000, seed: int = 0,
     for _ in range(iters):
         idx = [rng.randrange(n_tasks) for _ in range(n_tasks)]
         resampled = [[v[i] for i in idx] for v in vectors]
-        rho = mean_pairwise_phi(resampled)
+        rho, _pairs, _undef = mean_pairwise_phi(resampled)
         samples.append(n_eff(n_judges, rho))
     samples.sort()
     lo = empirical_quantile(samples, alpha / 2)
@@ -109,6 +115,8 @@ class PanelMetrics:
     per_judge_wrong_rate: list[float]
     per_judge_wrong_upper: list[float]
     rho_bar: float
+    n_phi_pairs: int
+    n_phi_undefined: int
     n_effective: float
     q_min: int
     q_max: int
@@ -137,12 +145,15 @@ def panel_metrics(rows: list[tuple[str, list[str]]],
 
     endorse_counts = [sum(1 for v in vs if v == "endorse")
                       for lb, vs in used if lb == "invalid"]
-    abstain_counts = [sum(1 for v in vs if v == "abstain")
-                      for lb, vs in used if lb == "valid"]
+    # Liveness counts NON-ENDORSEMENTS on valid tasks: a reject withholds
+    # endorsement exactly like an abstain, so both block a quorum of q
+    # (abstain-only counting overstated q_max — cross-model review 2026-07-21).
+    nonendorse_counts = [sum(1 for v in vs if v != "endorse")
+                         for lb, vs in used if lb == "valid"]
     e_delta = empirical_quantile([float(c) for c in endorse_counts], 1 - delta) \
         if endorse_counts else 0.0
-    u_epsilon = empirical_quantile([float(c) for c in abstain_counts], 1 - epsilon) \
-        if abstain_counts else 0.0
+    u_epsilon = empirical_quantile([float(c) for c in nonendorse_counts], 1 - epsilon) \
+        if nonendorse_counts else 0.0
 
     def wrong(label: str, verdict: str) -> int:
         if label == "invalid" and verdict == "endorse":
@@ -155,7 +166,7 @@ def panel_metrics(rows: list[tuple[str, list[str]]],
     n_used = len(used)
     rates = [sum(v) / n_used for v in vectors]
     uppers = [wilson_upper(sum(v), n_used) for v in vectors]
-    rho = mean_pairwise_phi(vectors)
+    rho, n_pairs, n_undef = mean_pairwise_phi(vectors)
 
     q_min = math.floor(e_delta) + 1
     q_max = n_judges - math.ceil(u_epsilon)
@@ -170,6 +181,8 @@ def panel_metrics(rows: list[tuple[str, list[str]]],
         per_judge_wrong_rate=rates,
         per_judge_wrong_upper=uppers,
         rho_bar=rho,
+        n_phi_pairs=n_pairs,
+        n_phi_undefined=n_undef,
         n_effective=n_eff(n_judges, rho),
         q_min=q_min,
         q_max=q_max,

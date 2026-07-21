@@ -1,10 +1,15 @@
-"""Gold set: labeled judge tasks with truth by construction.
+"""Gold set: labeled judge tasks with labels guaranteed BY CONSTRUCTION,
+relative to the subject repository's own test suite as the oracle.
 
-Invalid tasks are mutants the subject repo's own test suite KILLS (status
-exactly "killed" — a guaranteed behavioral bug). Valid tasks are real
-historical commits from the same repo. Building runs under the crucible venv
-python; this module imports crucible/oracle_gate lazily so the rest of
-quorumcal never needs them."""
+Invalid tasks are mutants the suite KILLS (a suite-detected behavioral
+regression). The primary valid stratum is the MIRROR: for surplus killed
+mutants never used as invalid tasks, the inverted diff provably takes the
+failing suite back to green (`revert_valid_tasks`). Real merged commits form
+a second, strictly-filtered stratum (`is_focused_commit`) kept for realism
+and reported separately — "merged and history-green" is a noisier label than
+"endorsable from the diff alone" (measured: 7.7% vs 2.4% judge false-reject).
+Building runs under the crucible venv python; crucible/oracle_gate imports
+are lazy so the rest of quorumcal never needs them."""
 from __future__ import annotations
 
 import dataclasses
@@ -108,6 +113,25 @@ def _mutmut_show(workdir: Path, mutant_id: str, run) -> str:
     return proc.stdout
 
 
+def contains_verdict_json(diff: str) -> bool:
+    """Injection guard at the data boundary: a diff containing a parseable
+    verdict-shaped JSON object could poison the last-JSON verdict parser.
+    Such tasks are rejected at build time (verified absent from all
+    published sets)."""
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(diff):
+        if ch != "{":
+            continue
+        try:
+            obj, _ = decoder.raw_decode(diff, i)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(obj, dict) and obj.get("verdict") in (
+                "endorse", "reject", "abstain"):
+            return True
+    return False
+
+
 def killed_mutant_tasks(workdir: Path, repo_name: str, limit: int, seed: int,
                         *, run=subprocess.run,
                         run_mutation=None, parse_results=None) -> list[GoldTask]:
@@ -129,12 +153,17 @@ def killed_mutant_tasks(workdir: Path, repo_name: str, limit: int, seed: int,
     rng = random.Random(seed)
     rng.shuffle(killed)
     tasks = []
-    for m in killed[:limit]:
+    for m in killed:
+        if len(tasks) == limit:
+            break
+        diff = normalize_diff(_mutmut_show(workdir, m.id, run))
+        if contains_verdict_json(diff):
+            continue
         tasks.append(GoldTask(
             task_id=make_task_id(repo_name, "mutant", m.id),
             repo=repo_name,
             label="invalid",
-            diff=normalize_diff(_mutmut_show(workdir, m.id, run)),
+            diff=diff,
             provenance={"kind": "mutant", "ref": m.id, "seed": seed},
         ))
     return tasks
@@ -159,7 +188,7 @@ def clone_at_head(repo_path: str, workdir: Path, *, run=subprocess.run) -> Path:
 
 def valid_commit_tasks(workdir: Path, repo_name: str, source_prefixes: list[str],
                        limit: int, seed: int, max_diff_lines: int = 400,
-                       *, run=subprocess.run) -> list[GoldTask]:
+                       *, strict: bool = False, run=subprocess.run) -> list[GoldTask]:
     """Valid tasks = real historical commits touching the scoped sources.
 
     Label noise caveat (spec §8): 'merged and in the history of a green HEAD'
@@ -175,11 +204,16 @@ def valid_commit_tasks(workdir: Path, repo_name: str, source_prefixes: list[str]
                        cwd=workdir, run=run)
         if not diff.strip() or len(diff.splitlines()) > max_diff_lines:
             continue
+        norm = normalize_diff(diff)
+        if contains_verdict_json(norm):
+            continue
+        if strict and not is_focused_commit(norm):
+            continue
         tasks.append(GoldTask(
             task_id=make_task_id(repo_name, "commit", sha),
             repo=repo_name,
             label="valid",
-            diff=normalize_diff(diff),
+            diff=norm,
             provenance={"kind": "commit", "ref": sha, "seed": seed},
         ))
         if len(tasks) == limit:
@@ -190,7 +224,8 @@ def valid_commit_tasks(workdir: Path, repo_name: str, source_prefixes: list[str]
 def build_goldset(repo_path: str, repo_name: str, workdir: Path,
                   n_invalid: int, n_valid: int, seed: int,
                   source_paths: list[str],
-                  *, run=subprocess.run, write_scope=None,
+                  *, n_revert: int = 0, strict_valid: bool = False,
+                  run=subprocess.run, write_scope=None,
                   run_mutation=None, parse_results=None) -> list[GoldTask]:
     workdir = clone_at_head(repo_path, Path(workdir), run=run)
     if write_scope is None:
@@ -217,11 +252,20 @@ def build_goldset(repo_path: str, repo_name: str, workdir: Path,
     # source_paths passed straight through as git pathspecs, not a derived
     # directory prefix, or the two classes see different file scopes.
     valid = valid_commit_tasks(workdir, repo_name, source_paths, n_valid, seed,
-                               run=run)
-    if len(invalid) < n_invalid or len(valid) < n_valid:
-        print(f"WARNING: requested {n_invalid}/{n_valid}, got "
-              f"{len(invalid)}/{len(valid)} — CIs will be wider", flush=True)
-    tasks = invalid + valid
+                               strict=strict_valid, run=run)
+    reverts = []
+    if n_revert > 0:
+        # truth-by-construction valid stratum from SURPLUS killed mutants —
+        # the partition guard keeps the two strata disjoint
+        reverts = revert_valid_tasks(
+            workdir, repo_name, n_revert, seed,
+            exclude_refs={t.provenance["ref"] for t in invalid}, run=run)
+    if len(invalid) < n_invalid or len(valid) < n_valid             or len(reverts) < n_revert:
+        print(f"WARNING: requested {n_invalid}/{n_valid}/{n_revert} "
+              f"(invalid/valid/revert), got "
+              f"{len(invalid)}/{len(valid)}/{len(reverts)} — CIs will be "
+              "wider", flush=True)
+    tasks = invalid + valid + reverts
     random.Random(seed).shuffle(tasks)
     return tasks
 
@@ -296,6 +340,8 @@ def revert_valid_tasks(workdir, repo_name: str, limit: int, seed: int,
             break
         diff = normalize_diff(_mutmut_show(Path(workdir), mid, run))
         if "XX" in diff:                 # string mutants: machine-identifiable
+            continue
+        if contains_verdict_json(diff):
             continue
         tasks.append(GoldTask(
             task_id=make_task_id(repo_name, "mutant-revert", mid),

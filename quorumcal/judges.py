@@ -54,12 +54,27 @@ _QUOTA_RE = re.compile(
 
 _CODEX_MODEL_RE = re.compile(r"^model:\s*(\S+)\s*$", re.MULTILINE)
 
-_CODEX_BIN_FALLBACK = os.path.expanduser("~/.hermes/node/bin/codex")
-_GROK_BIN_FALLBACK = os.path.expanduser("~/.local/bin/grok")
+def _binpath(name: str, env_var: str) -> str:
+    """CLI binary resolution: env override -> PATH -> hard error. Personal
+    fallback paths were removed for the public release (v1.0.1)."""
+    p = os.environ.get(env_var) or shutil.which(name)
+    if not p:
+        raise RuntimeError(
+            f"{name} CLI not found — set {env_var} or add {name} to PATH")
+    return p
 
 
-def _binpath(name: str, fallback: str) -> str:
-    return shutil.which(name) or fallback
+def _dominant_or_requested(model_usage: dict, requested: str) -> str | None:
+    """Served-model provenance rule (shared by all adapters): prefer the
+    requested model when its usage proves it ran; otherwise report the entry
+    with the most output tokens so real substitution stays VISIBLE. Never
+    next(iter(...)) — envelopes list ancillary helper models first."""
+    if not model_usage:
+        return None
+    if requested in model_usage:
+        return requested
+    return max(model_usage,
+               key=lambda k: (model_usage[k] or {}).get("outputTokens") or 0)
 
 
 @dataclass(frozen=True)
@@ -147,15 +162,9 @@ def claude_judge(spec: JudgeSpec, task: GoldTask,
         else:
             # CAPTURED 2026-07-21: modelUsage lists the CLI's ancillary haiku
             # usage FIRST; next(iter()) mis-recorded it for 1621/1640 phase1/2
-            # cells. Prefer the requested model when its usage proves it ran;
-            # otherwise report the dominant entry so substitution stays visible.
-            model_usage = env.get("modelUsage") or {}
-            if spec.model in model_usage:
-                record["model_reported"] = spec.model
-            elif model_usage:
-                record["model_reported"] = max(
-                    model_usage,
-                    key=lambda k: (model_usage[k] or {}).get("outputTokens") or 0)
+            # cells. Shared rule in _dominant_or_requested.
+            record["model_reported"] = _dominant_or_requested(
+                env.get("modelUsage") or {}, spec.model)
         record["cost_usd"] = env.get("total_cost_usd")
         record["raw_result"] = env.get("result", "")
         verdict, rationale = parse_verdict(record["raw_result"])
@@ -178,7 +187,7 @@ def codex_judge(spec: JudgeSpec, task: GoldTask,
               "raw_result": "", "prompt_version": PROMPT_VERSION}
     scratch_dir = tempfile.mkdtemp(prefix="qc-judge-")
     last = f"{scratch_dir}/last-message.txt"
-    cmd = [_binpath("codex", _CODEX_BIN_FALLBACK), "exec",
+    cmd = [_binpath("codex", "QC_CODEX_BIN"), "exec",
            "--skip-git-repo-check", "--sandbox", "read-only",
            "--ephemeral", "--ignore-user-config", "--ignore-rules",
            "--color", "never", "-m", spec.model, "-o", last, "-"]
@@ -233,8 +242,13 @@ def grok_judge(spec: JudgeSpec, task: GoldTask,
               "verdict": "error", "rationale": "", "cost_usd": None,
               "raw_result": "", "prompt_version": PROMPT_VERSION}
     scratch_dir = tempfile.mkdtemp(prefix="qc-judge-")
-    cmd = [_binpath("grok", _GROK_BIN_FALLBACK),
-           "--single", build_prompt(spec, task),
+    # prompt via file, never argv: argv is visible in process listings and
+    # bounded by ARG_MAX (live-verified --prompt-file 2026-07-21)
+    prompt_path = os.path.join(scratch_dir, "prompt.txt")
+    with open(prompt_path, "w", encoding="utf-8") as fh:
+        fh.write(build_prompt(spec, task))
+    cmd = [_binpath("grok", "QC_GROK_BIN"),
+           "--prompt-file", prompt_path,
            "--output-format", "json", "-m", spec.model,
            "--tools", "", "--no-memory", "--no-plan", "--no-subagents",
            "--disable-web-search", "--max-turns", "1"]
@@ -269,8 +283,8 @@ def grok_judge(spec: JudgeSpec, task: GoldTask,
         if not isinstance(env, dict):
             record["rationale"] = "unrecognized grok envelope shape"
             return record
-        model_usage = env.get("modelUsage") or {}
-        record["model_reported"] = next(iter(model_usage), None)
+        record["model_reported"] = _dominant_or_requested(
+            env.get("modelUsage") or {}, spec.model)
         record["cost_usd"] = env.get("total_cost_usd")
         record["raw_result"] = env.get("text", "")
         verdict, rationale = parse_verdict(record["raw_result"])

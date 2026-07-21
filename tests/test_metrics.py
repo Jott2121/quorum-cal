@@ -59,9 +59,11 @@ def test_phi_opposite_vectors_is_minus_one():
     assert pairwise_phi(a, b) == pytest.approx(-1.0)
 
 
-def test_phi_zero_variance_defined_as_zero():
-    # a judge that never errs has zero variance; phi is undefined → we define 0.0
-    assert pairwise_phi([0, 0, 0, 0], [1, 0, 1, 0]) == 0.0
+def test_phi_zero_variance_is_undefined_not_zero():
+    # a judge that never errs has zero variance; phi is UNDEFINED — returning
+    # 0.0 masked unidentified dependence as independence (cross-model review
+    # 2026-07-21, confirmed against the clean-subset claims)
+    assert pairwise_phi([0, 0, 0, 0], [1, 0, 1, 0]) is None
 
 
 def test_phi_independent_vectors_near_zero():
@@ -73,8 +75,9 @@ def test_phi_independent_vectors_near_zero():
 
 def test_n_eff_perfectly_correlated_panel_is_one():
     v = [1, 0, 1, 1, 0, 0]
-    rho = mean_pairwise_phi([v, v, v])
+    rho, n_pairs, n_undef = mean_pairwise_phi([v, v, v])
     assert rho == pytest.approx(1.0)
+    assert (n_pairs, n_undef) == (3, 0)
     assert n_eff(3, rho) == pytest.approx(1.0)
 
 
@@ -87,12 +90,20 @@ def test_n_eff_clamps_negative_rho():
     assert n_eff(3, -0.5) == pytest.approx(3.0)
 
 
-def test_mean_pairwise_phi_averages_all_pairs():
+def test_mean_pairwise_phi_averages_defined_pairs_only():
     a = [1, 0, 1, 1, 0, 0, 1, 0]
     b = list(a)
-    c = [0, 0, 0, 0, 0, 0, 0, 0]  # zero variance → phi 0.0 with anyone
-    # pairs: (a,b)=1.0, (a,c)=0.0, (b,c)=0.0 → mean 1/3
-    assert mean_pairwise_phi([a, b, c]) == pytest.approx(1.0 / 3.0)
+    c = [0, 0, 0, 0, 0, 0, 0, 0]  # zero variance → undefined with anyone
+    # defined pairs: (a,b)=1.0; (a,c),(b,c) undefined and COUNTED, not zeroed
+    rho, n_pairs, n_undef = mean_pairwise_phi([a, b, c])
+    assert rho == pytest.approx(1.0)
+    assert (n_pairs, n_undef) == (3, 2)
+
+
+def test_mean_pairwise_phi_all_undefined_reports_zero_with_full_undef_count():
+    z = [0, 0, 0, 0]
+    rho, n_pairs, n_undef = mean_pairwise_phi([z, z, z])
+    assert rho == 0.0 and (n_pairs, n_undef) == (3, 3)
 
 
 from quorumcal.metrics import PanelMetrics, panel_metrics
@@ -111,7 +122,8 @@ def test_panel_metrics_perfect_panel():
     assert m.q_min == 1
     assert m.q_max == 3
     assert m.feasible
-    assert m.n_effective == pytest.approx(3.0)   # zero-variance pairs → rho 0
+    assert m.n_effective == pytest.approx(3.0)
+    assert m.n_phi_undefined == m.n_phi_pairs == 3   # dependence UNIDENTIFIED, visibly
     assert not m.error_guard_tripped
 
 
@@ -144,6 +156,23 @@ def test_panel_metrics_abstain_charges_liveness_not_safety():
     assert m.u_epsilon == 1.0
     assert m.q_max == 2          # 3 - ceil(1)
     assert m.feasible
+
+
+def test_panel_metrics_valid_rejects_also_charge_liveness():
+    # cross-model review 2026-07-21: a reject on a valid task withholds
+    # endorsement exactly like an abstain — liveness must count NON-ENDORSE
+    rows = [("invalid", ["reject"] * 3) for _ in range(10)]
+    rows += [("valid", ["reject", "abstain", "endorse"]) for _ in range(10)]
+    m = panel_metrics(rows)
+    assert m.u_epsilon == 2.0    # reject + abstain both withhold endorsement
+    assert m.q_max == 1
+
+
+def test_panel_metrics_all_nonendorse_valid_is_infeasible():
+    rows = [("invalid", ["reject"] * 3) for _ in range(10)]
+    rows += [("valid", ["reject", "reject", "abstain"]) for _ in range(10)]
+    m = panel_metrics(rows)
+    assert m.u_epsilon == 3.0 and m.q_max == 0 and not m.feasible
 
 
 def test_panel_metrics_wrong_rates_and_uppers():
