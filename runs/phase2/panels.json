@@ -1,0 +1,32 @@
+{
+  "identical-sonnet": [
+    {"judge_id": "sonnet-corr-1", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "sonnet-corr-2", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "sonnet-corr-3", "model": "claude-sonnet-5", "lens": "correctness"}
+  ],
+  "diverse-lens-sonnet": [
+    {"judge_id": "sonnet-corr", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "sonnet-sec", "model": "claude-sonnet-5", "lens": "security"},
+    {"judge_id": "sonnet-test", "model": "claude-sonnet-5", "lens": "tests"}
+  ],
+  "mixed-tier": [
+    {"judge_id": "sonnet-corr", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "opus-corr", "model": "claude-opus-4-8", "lens": "correctness"},
+    {"judge_id": "fable-corr", "model": "claude-fable-5", "lens": "correctness"}
+  ],
+  "claude-plus-codex": [
+    {"judge_id": "sonnet-corr-1", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "sonnet-corr-2", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "codex-corr", "model": "gpt-5.6-sol", "lens": "correctness", "lineage": "codex"}
+  ],
+  "claude-plus-grok": [
+    {"judge_id": "sonnet-corr-1", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "sonnet-corr-2", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "grok-corr", "model": "grok-4.5", "lens": "correctness", "lineage": "grok"}
+  ],
+  "three-lineage": [
+    {"judge_id": "sonnet-corr", "model": "claude-sonnet-5", "lens": "correctness"},
+    {"judge_id": "codex-corr", "model": "gpt-5.6-sol", "lens": "correctness", "lineage": "codex"},
+    {"judge_id": "grok-corr", "model": "grok-4.5", "lens": "correctness", "lineage": "grok"}
+  ]
+}

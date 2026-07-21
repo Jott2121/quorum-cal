@@ -1,0 +1,8 @@
+[project]
+name = "quorumcal"
+version = "0.1.0"
+description = "Empirical calibrator for LLM judge panels (effective votes, quorum budgets)"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

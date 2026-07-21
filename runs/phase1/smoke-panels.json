@@ -1,0 +1,1 @@
+{"smoke": [{"judge_id": "smoke-sonnet", "model": "claude-sonnet-5", "lens": "correctness"}]}

@@ -1,0 +1,3 @@
+The function `add` should add its operands, but the change makes it subtract them. This breaks the function’s stated behavior.
+
+{"verdict":"reject","rationale":"The add function was incorrectly changed from addition to subtraction."}

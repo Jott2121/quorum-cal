@@ -1,0 +1,79 @@
+{
+  "baseline": {
+    "abstain_rate": 0.15555555555555556,
+    "disagreement_rate": 0.16666666666666666,
+    "n_tasks": 180
+  },
+  "budgets": {
+    "e_delta": 0.0,
+    "u_epsilon": 2.0
+  },
+  "committee": [
+    {
+      "judge_id": "sonnet-corr",
+      "lens": "correctness",
+      "lineage": "claude",
+      "model": "claude-sonnet-5"
+    },
+    {
+      "judge_id": "codex-corr",
+      "lens": "correctness",
+      "lineage": "codex",
+      "model": "gpt-5.6-sol"
+    },
+    {
+      "judge_id": "grok-corr",
+      "lens": "correctness",
+      "lineage": "grok",
+      "model": "grok-4.5"
+    }
+  ],
+  "delta": 0.1,
+  "domain": "code-change verification (crucible-seeded gold set)",
+  "emitted_at": "2026-07-21",
+  "epsilon": 0.1,
+  "expires_at": "2026-08-20",
+  "n_eff_ci": [
+    1.8141222539412343,
+    3.0
+  ],
+  "n_effective": 2.2820512820512824,
+  "panel": "three-lineage",
+  "per_judge_wrong_rate": [
+    0.011111111111111112,
+    0.011111111111111112,
+    0.011111111111111112
+  ],
+  "per_judge_wrong_upper": [
+    0.02643514605775708,
+    0.02643514605775708,
+    0.02643514605775708
+  ],
+  "profile_version": 1,
+  "provenance": {
+    "allowed_models": [
+      "claude-sonnet-5",
+      "gpt-5.6-sol",
+      "grok-4.5",
+      "grok-4.5-build"
+    ],
+    "observed_models": {
+      "codex-corr": [
+        "gpt-5.6-sol"
+      ],
+      "grok-corr": [
+        "grok-4.5-build"
+      ],
+      "sonnet-corr": []
+    },
+    "prompt_fingerprint": "2f0704226ca4de79257829e8bb6cee7c19d08cd3ca0fe3e487340bd3172a5f6c",
+    "prompt_version": "v2",
+    "tool_schemas": "none"
+  },
+  "q": 1,
+  "q_window": [
+    1,
+    1
+  ],
+  "rho_bar": 0.15730337078651685
+}

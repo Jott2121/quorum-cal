@@ -1,0 +1,72 @@
+{
+  "baseline": {
+    "abstain_rate": 0.09444444444444444,
+    "disagreement_rate": 0.14444444444444443,
+    "n_tasks": 180
+  },
+  "budgets": {
+    "e_delta": 0.0,
+    "u_epsilon": 1.0
+  },
+  "committee": [
+    {
+      "judge_id": "sonnet-corr",
+      "lens": "correctness",
+      "lineage": "claude",
+      "model": "claude-sonnet-5"
+    },
+    {
+      "judge_id": "sonnet-sec",
+      "lens": "security",
+      "lineage": "claude",
+      "model": "claude-sonnet-5"
+    },
+    {
+      "judge_id": "sonnet-test",
+      "lens": "tests",
+      "lineage": "claude",
+      "model": "claude-sonnet-5"
+    }
+  ],
+  "delta": 0.1,
+  "domain": "code-change verification (crucible-seeded gold set)",
+  "emitted_at": "2026-07-21",
+  "epsilon": 0.1,
+  "expires_at": "2026-08-20",
+  "n_eff_ci": [
+    2.176739052996022,
+    3.0
+  ],
+  "n_effective": 2.4266078202638135,
+  "panel": "diverse-lens-sonnet",
+  "per_judge_wrong_rate": [
+    0.011111111111111112,
+    0.027777777777777776,
+    0.06111111111111111
+  ],
+  "per_judge_wrong_upper": [
+    0.02643514605775708,
+    0.04824675073139305,
+    0.08819947333830193
+  ],
+  "profile_version": 1,
+  "provenance": {
+    "allowed_models": [
+      "claude-sonnet-5"
+    ],
+    "observed_models": {
+      "sonnet-corr": [],
+      "sonnet-sec": [],
+      "sonnet-test": []
+    },
+    "prompt_fingerprint": "2f0704226ca4de79257829e8bb6cee7c19d08cd3ca0fe3e487340bd3172a5f6c",
+    "prompt_version": "v2",
+    "tool_schemas": "none"
+  },
+  "q": 1,
+  "q_window": [
+    1,
+    2
+  ],
+  "rho_bar": 0.11814685812597621
+}
