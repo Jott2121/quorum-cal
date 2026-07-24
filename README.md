@@ -66,3 +66,11 @@ two defects in its own plumbing before they could pollute a published number
 (WRITEUP §5) — receipts over hype is the whole point.
 
 MIT license.
+
+## Companion instrument
+
+[sabot](https://github.com/Jott2121/sabot) measures whether a multi-agent pipeline's *own*
+checks detect faults planted into a live run — median 16.7% across LangGraph, CrewAI and
+AutoGen/Magentic-One. Its soft tier is adjudicated by a cross-lineage LLM judge and
+publishes the panel's agreement (Cohen's kappa 0.767 over 68 double-judged pairs), which is
+exactly the quantity quorum-cal exists to calibrate: how much a judge verdict is worth.
