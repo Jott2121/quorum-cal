@@ -1,0 +1,17 @@
+---
+description: Use when writing or changing README numbers, eval/benchmark code, experiment results, writeups, PR descriptions with metrics, or build-in-public post drafts
+globs: "README.md,docs/**,eval/**,runs/**,reports/**,papers/**,WRITEUP.md,CHANGELOG.md"
+alwaysApply: false
+---
+# Benchmarks and public claims
+
+- Pre-register before comparing: hypothesis, metric, n, decision rule → `docs/PREREG.md`, committed before the run.
+- Every published number links to: the command, the commit SHA, the raw artifact, and the date.
+- `runs/phase2c/report.json` is the v1.0.1 source of truth for the headline table. `report-v1.0.0.json` is the pre-correction snapshot and stays. The first result block in `runs/phase2c/RUNLOG.md` is pre-correction; do not copy it back into README or WRITEUP.
+- The public goldset is filtered. Do not rebuild the 180-task report from `runs/phase2c/goldset.jsonl`.
+- Include the baseline and the null. If a result is not significant, say so in the headline, not a footnote. identical-vs-diverse is the separation this data supports; diverse forms are not a ranking.
+- State limits up front (n, single run per cell, prompt shape, model versions, cost).
+- Don't round in your favor. Show CIs or ranges where you have them. Published N_eff, CI, and rho are rounded to 2 decimals from the report.
+- Never edit raw run outputs. Supersede with a new run and a note.
+- If a README number changes, the PR must show before → after and the command that produced it (`python scripts/check_receipts.py`).
+- Cross-check numbers that appear in more than one place (README, WRITEUP, profile README) and fix drift in the same PR.
