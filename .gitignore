@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+
+# Secrets
+.env
+.env.*
+
+# Hook scripts append session receipts and scan warnings here.
+.cursor/hook-logs/
+
+# Scratch gold-set workdirs
+runs/tmp/

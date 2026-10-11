@@ -1,0 +1,22 @@
+version: 2
+updates:
+  # Runtime deps are stdlib-only. This tracks the dev extra (pytest, ruff)
+  # declared in pyproject.toml, same weekly cadence as the other repos.
+  - package-ecosystem: "pip"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      python:
+        patterns: ["*"]
+
+  # GitHub Actions — keeps the SHA-pinned actions current
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      actions:
+        patterns: ["*"]

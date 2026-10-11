@@ -1,0 +1,15 @@
+---
+description: Use when editing CLI judge adapters, the panel runner, or judge fixtures
+globs: "quorumcal/judges.py,quorumcal/panel.py,tests/test_judges.py,tests/fixtures/**"
+alwaysApply: false
+---
+# Judge adapters
+
+This repo does not wrap an xAI SDK. Judges are fresh, toolless CLI processes (`claude`, `codex`, `grok`). There is no `llm/` client module and no live call in the default tests.
+
+- One fresh process per (judge, task). Session reuse would fake the correlation this repo measures.
+- Timeouts, missing binaries, and unparseable output are `error` verdicts, not endorsements. `QuotaExhausted` halts the panel; it does not guess.
+- Served-model provenance uses requested-when-proven-else-dominant. Do not take the first `modelUsage` entry (ancillary models are listed first).
+- `PROMPT_VERSION` is provenance only. Never fold it into `cache_key`.
+- Binary resolution is env override (`QC_CODEX_BIN`, `QC_GROK_BIN`), then PATH, then a hard error. No personal fallback paths.
+- Tests use recorded fixtures or a fake judge function. No live CLI calls in CI.
