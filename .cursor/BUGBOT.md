@@ -6,7 +6,7 @@ Flag as **blocking**:
 2. Lowered thresholds: `--cov-fail-under`, mutation score floors, MIN_SCORE-style constants, retry/timeout bounds removed.
 3. Tests that were deleted, skipped, xfailed, or had assertions weakened without a stated reason in the PR body. The published suite is 132 tests.
 4. README/WRITEUP/docs numbers that changed without a reproducing command or artifact in the PR. Headline figures must match `runs/phase2c/report.json`.
-5. Any content that looks like employer/corporate data: company names (Lockheed, LM, LMCO), internal acronyms, CUI/ITAR markings, real-looking employee records, internal URLs. The author's public GitHub bio is not a license to add employer material. This repo is personal work only.
+5. Any content that looks like employer/corporate data: employer names or their abbreviations, job titles or bios that name an employer, internal acronyms, program or site names, CUI/ITAR markings, real-looking employee records, internal URLs. Also any blocked term committed in plain text, or a change that weakens `scripts/check_no_employer_data.py` or empties `.github/blocked-terms.sha256`. This repo is personal work only.
 6. Secrets, tokens, `.env` files, or absolute personal paths committed (the v1.0.1 release removed personal CLI fallback paths).
 7. Unpinned GitHub Actions (must be full SHA) or widened workflow `permissions:`.
 8. Live network / model calls added to the default test path.
