@@ -61,7 +61,7 @@ There is no typechecker config. A task is not done until the pytest command and 
 
 ## Known traps
 
-- The hook matcher includes `git pull` and `rebase`. Plain `git pull` is allowed. **`git pull --rebase` and `git rebase` are denied.** Update via fetch and a PR. Do not loosen the guard to unblock a rebasing pull.
+- The hook matcher includes `git pull` and `rebase`. Plain `git pull` is allowed. **`git pull --rebase` and `git rebase` are denied.** Update via fetch and a PR. Do not loosen the guard to unblock a rebasing pull. Force-push and hard reset are denied wherever the flag sits, including `git push origin --force`, `git push origin -f`, and `git reset HEAD --hard`.
 - The public `runs/phase2c/goldset.jsonl` is filtered (fewer than 180 lines). Report aggregates are 180 tasks because withheld private-repo tasks are included. Do not rebuild `report.json` from the public file.
 - `runs/phase2c/RUNLOG.md`'s first result block is pre-correction. v1.0.1 numbers are the erratum, `report.json`, README, and WRITEUP. Do not "sync" the writeup back to the old block.
 - Committed profiles expired 2026-08-20. `profile check` exits 2 after that. That is expiry, not provenance drift. Do not refresh `expires_at` to get a green check.

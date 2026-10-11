@@ -5,8 +5,9 @@
 # `git pull --rebase` reaches this script and the rebase arm denies it.
 # A well-formed payload with an empty, blank, missing, or non-string command
 # is denied. Invalid JSON exits non-zero so hooks.json failClosed blocks it.
-# Force flags are their own arguments. `git push origin main --force` does not
-# contain the contiguous text "push --force".
+# Force and hard-reset flags are their own arguments, anywhere in the command.
+# `git push origin --force` and `git push origin -f` do not contain "push --force"
+# or "push -f". `git reset HEAD --hard` does not contain "reset --hard".
 set -euo pipefail
 input="$(cat)"
 deny() { printf '{"permission":"deny","user_message":"%s","agent_message":"%s Open a PR instead; a human will do this step."}\n' "$1" "$1"; exit 0; }
@@ -36,9 +37,13 @@ fi
 if [[ "$cmd" == *"git push"* ]] && [[ "$cmd" =~ (^|[[:space:]])(--force(--|$|[[:space:]=])|--force-with-lease(--|$|[[:space:]=])|-[A-Za-z]*f[A-Za-z]*(--|$|[[:space:]])) ]]; then
   deny "Force-push blocked by repo policy."
 fi
+# --hard is its own argument. `git reset HEAD --hard` does not contain "reset --hard".
+if [[ "$cmd" == *"git reset"* ]] && [[ "$cmd" =~ (^|[[:space:]])--hard(--|$|[[:space:]=]) ]]; then
+  deny "History rewrite blocked by repo policy. This includes git reset HEAD --hard."
+fi
 case "$cmd" in
   *"push --force"*|*"push -f"*|*"--force-with-lease"*) deny "Force-push blocked by repo policy." ;;
-  *"reset --hard"*|*"rebase"*)                        deny "History rewrite blocked by repo policy. This includes git pull --rebase." ;;
+  *"rebase"*)                                        deny "History rewrite blocked by repo policy. This includes git pull --rebase." ;;
   *"git tag"*|*"twine upload"*|*"uv publish"*|*"gh release"*) deny "Releases/publishing are human-only." ;;
   *"rm -rf /"*|*"rm -rf ~"*|*'rm -rf $HOME'*)         deny "Destructive delete blocked." ;;
   *"curl"*"| sh"*|*"curl"*"| bash"*|*"wget"*"| sh"*)   deny "Pipe-to-shell blocked." ;;
