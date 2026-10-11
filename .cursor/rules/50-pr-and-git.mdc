@@ -9,5 +9,5 @@ alwaysApply: false
 - PR body sections (required): What · Why · How verified (exact commands + trimmed output) · Numbers changed (before → after + command) · Risks · Not done / follow-ups · Plan link (`.cursor/plans/...`) · Agent run link if any.
 - Attach artifacts for anything visual or behavioral (screenshot, short video, eval table).
 - Never force-push shared branches, rewrite history, tag, or publish. A human merges.
-- The shell guard blocks `git pull --rebase`. The matcher is `rebase`, because that command does not contain `git rebase`, and the script then denies it. Do not weaken the hook. Fetch and open a PR instead. Force-push is denied even when `--force` or `-f` comes after other `git push` arguments.
+- The shell guard's matcher includes `git pull`, so pulls reach the script. Plain `git pull` is allowed. `git pull --rebase` and `git rebase` are denied. Do not weaken the hook. Fetch and open a PR instead. Force-push is denied even when `--force` or `-f` comes after other `git push` arguments. A payload with an empty, blank, missing, or non-string command is denied.
 - Address every Bugbot / Security Review finding: fix it or reply with a reason. Don't silently resolve.
