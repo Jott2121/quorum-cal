@@ -97,10 +97,11 @@ class ScannerTest(unittest.TestCase):
                 self.assertIn(f"{rel}:1: blocked term", result.stderr)
 
     def test_longer_tokens_do_not_match_a_short_blocked_word(self):
-        result = self.repo(CLEAN, hashes=[digest("lm")]).scan()
+        files = {**CLEAN, "x.txt": "QQX and QXS are fine\n"}
+        result = self.repo(files, hashes=[digest("qx")]).scan()
         self.assertEqual(result.returncode, 0, result.stderr)
-        files = {**CLEAN, "x.txt": "the LM team\n"}
-        self.assertEqual(self.repo(files, hashes=[digest("lm")]).scan().returncode, 1)
+        files = {**CLEAN, "x.txt": "the QX team\n"}
+        self.assertEqual(self.repo(files, hashes=[digest("qx")]).scan().returncode, 1)
 
     def test_build_output_is_skipped(self):
         files = {**CLEAN, "node_modules/pkg/index.js": f"// {PLANTED_WORD}\n"}

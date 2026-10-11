@@ -174,7 +174,7 @@ def tracked_files(root: Path) -> list[str]:
     return files
 
 
-def employer_hits(
+def blocked_term_hits(
     root: Path,
     rels: list[str],
     hash_file: Path,
@@ -246,13 +246,13 @@ def run(args: argparse.Namespace) -> int:
     markers = load_markers(os.environ.get(MARKERS_ENV))
     if args.paths is not None:
         rels = [os.path.relpath(Path(p).resolve(), root) for p in args.paths]
-        hits, _ = employer_hits(root, rels, hash_file, markers)
+        hits, _ = blocked_term_hits(root, rels, hash_file, markers)
         for hit in hits:
             print(f"EMPLOYER: {hit}", file=sys.stderr)
         return 1 if hits else 0
 
     rels = tracked_files(root)
-    hits, scanned = employer_hits(root, rels, hash_file, markers)
+    hits, scanned = blocked_term_hits(root, rels, hash_file, markers)
     marker_hits = export_control_hits(root)
     junk = committed_junk(rels)
     if not hits and not marker_hits and not junk:
