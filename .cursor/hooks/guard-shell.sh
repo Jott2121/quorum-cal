@@ -32,13 +32,17 @@ fi
 if [[ "$status" -ne 0 ]]; then
   exit "$status"
 fi
-# --force / --force-with-lease / a short cluster that includes f (-f, -uf, -fu).
-# Branch names such as feature-fix do not match: the flag must be its own argument.
-if [[ "$cmd" == *"git push"* ]] && [[ "$cmd" =~ (^|[[:space:]])(--force(--|$|[[:space:]=])|--force-with-lease(--|$|[[:space:]=])|-[A-Za-z]*f[A-Za-z]*(--|$|[[:space:]])) ]]; then
+# A flag is its own argument. The next character may be end-of-string, whitespace,
+# `=`, or a shell metacharacter (`;`, `&`, `|`, quotes). `--hardly` does not match
+# `--hard`, and a branch name such as feature-fix does not match `-f`.
+# `git reset --hard; true` and `git push origin --force|cat` still deny.
+push_re='(^|[[:space:];&|<>()"'"'"'`])(--force($|[^A-Za-z0-9-])|--force-with-lease($|[^A-Za-z0-9-])|-[A-Za-z]*f[A-Za-z]*($|[^A-Za-z0-9]))'
+hard_re='(^|[[:space:];&|<>()"'"'"'`])--hard($|[^A-Za-z0-9-])'
+if [[ "$cmd" == *"git push"* ]] && [[ "$cmd" =~ $push_re ]]; then
   deny "Force-push blocked by repo policy."
 fi
 # --hard is its own argument. `git reset HEAD --hard` does not contain "reset --hard".
-if [[ "$cmd" == *"git reset"* ]] && [[ "$cmd" =~ (^|[[:space:]])--hard(--|$|[[:space:]=]) ]]; then
+if [[ "$cmd" == *"git reset"* ]] && [[ "$cmd" =~ $hard_re ]]; then
   deny "History rewrite blocked by repo policy. This includes git reset HEAD --hard."
 fi
 case "$cmd" in
