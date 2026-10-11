@@ -1,0 +1,10 @@
+# SHA-256 of each lowercased blocked employer term, one per line.
+# A term is one word or two words joined by a single space, where a word is a
+# run of [a-z0-9]. scripts/check_no_employer_data.py hashes every word and
+# every adjacent word pair in tracked files and fails on a match.
+# Add a term: printf '%s' 'term in lowercase' | sha256sum
+# Never commit the plain-text term, here or anywhere else.
+cb5c36fe59056a6a1afb4b133d30981f672257d6c372bace38798b504fc0c6f2
+c376013522845bfce25461e2335a75a6808fd9365beba1c8ad75200ff2488ea3
+f277af9c64194778d745db1e6f142c724110717970ed251b4611f28e683957ae
+8c6a10a10f5de2282f957c71717b5a15ab371af5bd781b4d38e72f556964da06

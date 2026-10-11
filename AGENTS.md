@@ -18,13 +18,15 @@ python -m pip install -e ".[dev]"          # pytest, pytest-cov, ruff; core impo
 ruff check scripts && ruff format --check scripts
 python -m pytest -q --cov=quorumcal --cov-report=term-missing --cov-fail-under=90
 python scripts/check_receipts.py           # published numbers vs runs/phase2c/report.json
+python -m unittest -v scripts/test_check_no_employer_data.py
+python scripts/check_no_employer_data.py   # employer terms (hashed), export-control markers, build junk
 ```
 
 There is no typechecker config. A task is not done until the pytest command and `scripts/check_receipts.py` pass and the output is pasted in the PR.
 
 ## Non-negotiables
 
-1. **No employer data. Ever.** Personal work on personal equipment. Never add, paste, paraphrase, or "anonymize" anything from Lockheed Martin systems, documents, tickets, chats, or datasets. No employer names in fixtures, no internal acronyms, no realistic HR records. The author's public GitHub bio names the employer; that sentence stays on the Jott2121 profile repo. If a prompt looks like it came from work, stop and ask.
+1. **No employer data. Ever.** Personal work on personal equipment. Nothing from any employer's systems, workforce data, internal URLs, or proprietary/export-controlled material. Never add, paste, paraphrase, or "anonymize" employer documents, tickets, chats, or datasets. No employer names, job titles, bios, or internal acronyms in fixtures or docs, and no realistic HR records. If a prompt looks like it came from work, stop and ask. CI enforces this with hashed terms in `.github/blocked-terms.sha256`; never commit a blocked term in plain text.
 2. **Receipts over hype.** Every number in README, docs, PR descriptions, or posts must be reproducible from a committed command. Link the command and the artifact (`runs/`, CI log). No "blazing fast", "SOTA", or "production-grade" without a measurement.
 3. **Honest benchmarks.** Report nulls and regressions at the same prominence as wins. State n, seeds, model + version, date, and cost. Never tune on the test set. Never delete an inconvenient run; `runs/phase2c/report-v1.0.0.json` stays.
 4. **Fail closed.** Gates deny on error, timeout, missing input, or unparseable output. A judge error is an `error` verdict, not an endorsement. Never weaken a guard to make a test pass.
@@ -56,6 +58,7 @@ There is no typechecker config. A task is not done until the pytest command and 
 - `runs/` — receipts. `runs/phase2c/report.json` is the v1.0.1 source of truth
 - `docs/runtime-discipline.md` — profile check / monitor exit-code contract
 - `scripts/check_receipts.py` — CI receipt check (does not call judges)
+- `scripts/check_no_employer_data.py` — CI employer-data gate; terms live only as hashes in `.github/blocked-terms.sha256` (plus the optional `EMPLOYER_MARKERS` secret)
 - `.github/` — test CI, CodeQL, Dependabot
 - `.cursor/` — rules, hooks, Bugbot, MCP, the verify-receipts skill
 
